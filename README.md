@@ -1,6 +1,9 @@
 # musical_predictions
 Based on my blogposts about the relationship between music and prediction. And we will test the idea of human pattern recognition with that of CNN and Time-Series analysis based machine learning model for trading.
 
+Blogpost1: https://andykwakcmu.github.io/ANDYKWAK.github.io/blog_page/music_markov/
+Blogpost2: https://andykwakcmu.github.io/ANDYKWAK.github.io/blog_page/music_markov2/
+
 Here's the gist of things:
 
 Time-Series Analysis (Detects volatility compression)
