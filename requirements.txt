@@ -7,7 +7,8 @@ numpy>=2.0
 yfinance>=1.0
 ib_async>=2.0
 pytest>=8.0
+torch>=2.4
+scikit-learn>=1.5
+matplotlib>=3.9
 
-# Added in later phases (see docs/plan.md):
-#   Phase 2 (TSA):  hmmlearn, arch
-#   Phase 4 (CNN):  torch, scikit-learn, matplotlib
+# Optional TSA upgrades (see docs/plan.md, Phase 2): hmmlearn, arch
