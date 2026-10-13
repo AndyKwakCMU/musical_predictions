@@ -18,3 +18,8 @@ HORIZON = 10                # bars before the time stop
 
 WINDOW = 64                 # bars of history fed to the CNN
 DATASET_DIR = "data/datasets"
+
+# Test B splits (all inside the dev period)
+VAL_START = "2018-01-01"
+TEST_START = "2021-01-01"
+MODEL_DIR = "models"
