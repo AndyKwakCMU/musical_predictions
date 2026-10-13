@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Models / weights
+models/*
+!models/.gitkeep
+*.pt
+
+# Bulk data (small samples in data/ stay committed)
+data/raw/
+
+# Kill switch for paper/live trading
+STOP

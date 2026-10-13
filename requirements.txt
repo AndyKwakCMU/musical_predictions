@@ -1,0 +1,13 @@
+# Install with: pip install -r requirements.txt
+# (also installs the local `musical` package in editable mode)
+-e .
+
+pandas>=3.0
+numpy>=2.0
+yfinance>=1.0
+ib_async>=2.0
+pytest>=8.0
+
+# Added in later phases (see docs/plan.md):
+#   Phase 2 (TSA):  hmmlearn, arch
+#   Phase 4 (CNN):  torch, scikit-learn, matplotlib
