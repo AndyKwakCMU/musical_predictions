@@ -74,3 +74,27 @@ Ideas for next iterations, not yet tried:
 - Predict "barrier hit vs NONE" and pair it with a non-directional structure, e.g. a straddle-like bracket, instead of direction.
 - Longer windows, cross-sectional or market context (SPY state as a channel), and events at compression *break* instead of during compression.
 - Stricter gate, e.g. episode starts only, at the cost of fewer events.
+
+## 2026-10-13 — Test C (walk-forward, full system), dev years 2010–2023
+
+Each fold works the same way. The CNN (emb 0, dropout 0.5, seed 0) trains on events before year Y−1 and early-stops on Y−1. It then trades Y's gated events through `musical/backtest.py`:
+
+- next-open entry
+- ±2 ATR bracket with a 10-bar time stop
+- 1% risk per trade
+- max 10 positions
+- IBKR-like commission plus 2 bps slippage per side
+
+| strategy | trades | hit rate | expectancy (net R) | CAGR | Sharpe | max DD |
+|---|---|---|---|---|---|---|
+| cnn | 3,629 | 0.530 | 0.027 | 1.9% | 0.31 | −21.3% |
+| always long (same events) | 3,629 | 0.537 | 0.045 | 3.6% | 0.50 | −16.0% |
+| coin flip | 3,629 | 0.498 | −0.018 | −2.7% | −0.44 | −37.4% |
+
+The CNN went long on 88% of events. Its longs made +0.043R and its shorts lost 0.093R. In effect it is "always long" plus losing shorts.
+
+**Result: FAIL** (it does not beat always-long). The 2× cost and parameter-robustness runs were skipped, since the system fails at 1× costs already.
+
+The gated-vs-ungated CNN comparison is deferred until some model passes Test B. The holdout (2024+) is still untouched.
+
+Takeaway: the gated events have a long drift edge (always-long +0.045R/trade), and the TSA gate is real (Test A). The missing piece is direction.
