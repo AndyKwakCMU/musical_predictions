@@ -33,3 +33,24 @@ def test_cli_writes_protocol_csv_to_default_data_dir(tmp_path, monkeypatch):
         "date", "time", "open", "high", "low", "close", "volume"
     ]
     assert len(df) == 2
+
+
+def test_cli_ib_source_routes_to_ibkr_fetcher(tmp_path, monkeypatch):
+    mod = load_script()
+    protocol = pd.DataFrame({
+        "date": ["2026-10-12"], "time": ["09:30:00"], "open": [1.0],
+        "high": [1.0], "low": [1.0], "close": [1.0], "volume": [1],
+    })
+    calls = []
+    monkeypatch.setattr(mod, "fetch_data", lambda *a: (_ for _ in ()).throw(AssertionError("yfinance used")))
+    monkeypatch.setattr(mod, "fetch_ib", lambda *a, **k: calls.append(a) or protocol)
+    monkeypatch.setattr(sys, "argv", [
+        "data_fetch.py", "AAPL", "2026-10-01", "2026-10-13", "5m", str(tmp_path),
+        "--source", "ib",
+    ])
+
+    mod.main()
+
+    assert calls and calls[0][0] == "AAPL"
+    out = tmp_path / "AAPL_2026-10-01_2026-10-13_5m.csv"
+    assert pd.read_csv(out)["time"].tolist() == ["09:30:00"]

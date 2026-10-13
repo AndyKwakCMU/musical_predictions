@@ -116,3 +116,10 @@ def test_metrics_report_core_numbers():
     assert m["hit_rate"] == pytest.approx(2 / 3)
     assert m["expectancy_r"] == pytest.approx(2.5 / 3)
     assert m["max_drawdown"] == pytest.approx(-50 / 100_100)
+
+
+def test_entry_fills_at_next_bar_open():
+    rows = [(100, 100.1, 99.9, 100)] + [(101, 101.1, 100.9, 101)] + flat(5, 101)
+    t = one(rows, +1)
+    assert t["entry"] == 101
+    assert t["entry_time"] == bars_from(rows).index[1]

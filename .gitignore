@@ -16,3 +16,4 @@ data/raw/
 # Kill switch for paper/live trading
 STOP
 data/datasets/
+data/signals.csv

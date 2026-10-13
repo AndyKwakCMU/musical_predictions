@@ -1,5 +1,7 @@
 # musical_predictions — Revival Plan
 
+**Status (2026-10-13):** all code phases are built. Test A passes, and Tests B and C fail. IBKR is built up to the dry run (step 3) but not yet run against a real Gateway. See `docs/experiments.md` and `CLAUDE.md`.
+
 Written 2026-10-13. The project went dormant in 2026-01 with only `scripts/data_fetch.py` working. See `CLAUDE.md` for the current state and known bugs.
 
 The plan has three parts:

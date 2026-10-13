@@ -71,3 +71,13 @@ def test_result_reports_entry_and_return_in_atr_units():
     row = out.iloc[0]
     assert row["entry"] == 100
     assert np.isclose(row["max_excursion_atr"], 2.5)
+
+
+def test_entry_is_next_bar_open_not_signal_close():
+    # signal bar closes at 100, next bar gaps open to 101
+    rows = [(100, 100.1, 99.9, 100)] + [(101, 101.1, 100.9, 101)] + flat(5, 101)
+    atr = pd.Series(1.0, index=bars_from(rows).index)
+    out = triple_barrier(bars_from(rows), atr, k=2.0, horizon=5)
+    row = out.iloc[0]
+    assert row["entry"] == 101
+    assert row["upper"] == 103 and row["lower"] == 99
