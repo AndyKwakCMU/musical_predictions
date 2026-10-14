@@ -20,14 +20,14 @@ import numpy as np
 from musical.cnn import predict_proba
 from musical.dataset import make_window
 from musical.experiment import direction_from_proba
-from musical.tsa import COMPRESSED, analyze
+from musical.tsa import COMPRESSED, TSAConfig, analyze
 
 
-def latest_signal(bars, ticker, model, width):
+def latest_signal(bars, ticker, model, width, tsa_cfg=TSAConfig()):
     #@requires bars time-ordered, last row is the decision bar
     #@ensures dict with timestamp, ticker, state, atr, direction
     #         (+1 / -1, or 0 = no trade) and proba (None if no trade)
-    tsa = analyze(bars)
+    tsa = analyze(bars, tsa_cfg)
     t = len(bars) - 1
     signal = {
         "timestamp": bars.index[t],

@@ -98,3 +98,21 @@ The CNN went long on 88% of events. Its longs made +0.043R and its shorts lost 0
 The gated-vs-ungated CNN comparison is deferred until some model passes Test B. The holdout (2024+) is still untouched.
 
 Takeaway: the gated events have a long drift edge (always-long +0.045R/trade), and the TSA gate is real (Test A). The missing piece is direction.
+
+---
+
+## 2026-10-13 — Intraday round: settings declared BEFORE seeing results
+
+**Why:** daily-bar breakout direction showed no edge (Tests B and C). The next hypothesis is that direction is more predictable on intraday bars.
+
+**Data:** IBKR 15-minute `TRADES` bars, regular trading hours, 2016-01-01 → 2026-10-12, for 30 liquid names (`data/universe_intraday.txt`). IBKR intraday bars are already split-adjusted. I verified this: AAPL closes around 125 on 2020-08-28, not around 500.
+
+**Gate:** same rule (vol pct ≤ 20% and bandwidth pct ≤ 20%). The difference is that percentiles rank each bar only against the **same time of day over the previous 40 sessions**.
+
+Without this, the gate is distorted badly. On synthetic U-shaped data, the naive gate flags 35% of 3:00pm bars versus 1% of 11:15am bars.
+
+**Labels and backtest:** k = 2, H = 10 bars (2.5 h, may hold overnight), window 64 bars (about 2.5 sessions). Same CNN and training code.
+
+**Splits (Test B):** train 2016–2020, val 2021–2022, test 2023. The holdout is still 2024-01-01 onward, untouched.
+
+**Cost note:** 2 bps slippage per side is a much bigger share of a 15-minute ±2 ATR bracket than of a daily one. Expect costs to bite.

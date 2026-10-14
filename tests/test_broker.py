@@ -17,7 +17,7 @@ class FakeIB:
         self.pages = list(pages or [])
         self.requests = []
 
-    def connect(self, host, port, clientId, readonly):
+    def connect(self, host, port, clientId, readonly, timeout):
         self.connected_with = dict(host=host, port=port, clientId=clientId,
                                    readonly=readonly)
 

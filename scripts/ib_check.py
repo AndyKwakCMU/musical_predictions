@@ -16,6 +16,7 @@
 ##############################################################################
 
 import argparse
+import asyncio
 
 from musical import broker
 
@@ -34,9 +35,13 @@ def main():
     try:
         print("accounts:", ib.managedAccounts())
         keep = {"NetLiquidation", "TotalCashValue", "BuyingPower", "AccountType"}
-        for v in ib.accountSummary():
-            if v.tag in keep:
-                print(f"  {v.tag:16s} {v.value} {v.currency}")
+        try:
+            summary = ib.run(asyncio.wait_for(ib.accountSummaryAsync(), 10))
+            for v in summary:
+                if v.tag in keep:
+                    print(f"  {v.tag:16s} {v.value} {v.currency}")
+        except TimeoutError:
+            print("  account summary timed out (not needed for data; check Gateway API settings)")
         from ib_async import Stock
         contract = Stock("SPY", "SMART", "USD")
         ib.qualifyContracts(contract)

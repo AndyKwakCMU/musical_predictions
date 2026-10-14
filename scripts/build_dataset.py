@@ -26,31 +26,35 @@ from musical.data import load_bars
 from musical.dataset import build_events
 
 
-def dataset_path(width, k, horizon, directory=config.DATASET_DIR):
+def dataset_path(width, k, horizon, interval="1d", directory=config.DATASET_DIR):
     #@ensures \result is the .npz path for these settings
-    return Path(directory) / f"events_w{width}_k{k:g}_h{horizon}.npz"
+    suffix = "" if interval == "1d" else f"_{interval}"
+    return Path(directory) / f"events_w{width}_k{k:g}_h{horizon}{suffix}.npz"
 
 
 def main():
     par = argparse.ArgumentParser()
-    par.add_argument("--raw-dir", default=config.RAW_DIR)
+    par.add_argument("--interval", default="1d", help="1d (yfinance) or 15m (IBKR)")
+    par.add_argument("--raw-dir", default=None)
     par.add_argument("--width", type=int, default=config.WINDOW)
     par.add_argument("--k", type=float, default=config.BARRIER_K)
     par.add_argument("--horizon", type=int, default=config.HORIZON)
     args = par.parse_args()
 
     Xs, ys, metas = [], [], []
-    for path in sorted(Path(args.raw_dir).glob("*_1d.csv")):
+    raw = args.raw_dir or config.raw_dir(args.interval)
+    tsa_cfg = config.tsa_config(args.interval)
+    for path in sorted(Path(raw).glob(f"*_{args.interval}.csv")):
         ticker = path.name.split("_")[0]
         X, y, meta = build_events(load_bars(path), ticker,
-                                  args.width, args.k, args.horizon)
+                                  args.width, args.k, args.horizon, tsa_cfg)
         if len(X):
             Xs.append(X); ys.append(y); metas.append(meta)
 
     X, y = np.concatenate(Xs), np.concatenate(ys)
     meta = pd.concat(metas, ignore_index=True)
 
-    out = dataset_path(args.width, args.k, args.horizon)
+    out = dataset_path(args.width, args.k, args.horizon, args.interval)
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out, X=X, y=y)
     meta.to_csv(out.with_name(out.stem + "_meta.csv"), index=False)

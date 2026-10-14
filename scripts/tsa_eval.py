@@ -26,15 +26,16 @@ from musical.labels import NONE, triple_barrier
 from musical.tsa import COMPRESSED, NOISE, analyze
 
 
-def collect(raw_dir, k, horizon):
+def collect(raw_dir, k, horizon, interval="1d"):
     #@ensures \result has one labeled row per ready bar, tagged with
     #         ticker, state, and whether it starts a compressed episode
     frames = []
-    for path in sorted(Path(raw_dir).glob("*_1d.csv")):
+    cfg = config.tsa_config(interval)
+    for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
         ticker = path.name.split("_")[0]
         bars = load_bars(path)
         bars = bars[bars.index < config.DEV_END]
-        tsa = analyze(bars)
+        tsa = analyze(bars, cfg)
         ready = tsa.index[tsa["state"] != "WARMUP"]
         lab = triple_barrier(bars, tsa["atr"], k, horizon, events=ready)
         lab["ticker"] = ticker
@@ -59,12 +60,14 @@ def summarize(df):
 
 def main():
     par = argparse.ArgumentParser()
-    par.add_argument("--raw-dir", default=config.RAW_DIR)
+    par.add_argument("--interval", default="1d", help="1d (yfinance) or 15m (IBKR)")
+    par.add_argument("--raw-dir", default=None)
     par.add_argument("--k", type=float, default=config.BARRIER_K)
     par.add_argument("--horizon", type=int, default=config.HORIZON)
     args = par.parse_args()
 
-    df = collect(args.raw_dir, args.k, args.horizon)
+    raw = args.raw_dir or config.raw_dir(args.interval)
+    df = collect(raw, args.k, args.horizon, args.interval)
     groups = {
         "ALL": df,
         "NOISE": df[df["state"] == NOISE],
@@ -73,7 +76,7 @@ def main():
         "EPISODE_START": df[df["episode_start"]],
     }
     table = pd.DataFrame({name: summarize(g) for name, g in groups.items()}).T
-    print(f"Test A  (k={args.k}, horizon={args.horizon}, dev period < {config.DEV_END})")
+    print(f"Test A  {args.interval}  (k={args.k}, horizon={args.horizon}, dev period < {config.DEV_END})")
     print(table.to_string(float_format=lambda x: f"{x:.3f}"))
 
     df["year"] = df.index.year

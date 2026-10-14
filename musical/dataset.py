@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from musical.labels import DOWN, NONE, UP, triple_barrier
-from musical.tsa import COMPRESSED, analyze
+from musical.tsa import COMPRESSED, TSAConfig, analyze
 
 CHANNELS = [
     "ret_atr",      # close-to-close move / ATR(t)
@@ -65,11 +65,11 @@ def make_window(bars, tsa, t, width):
     return x.astype(np.float32)
 
 
-def build_events(bars, ticker, width, k, horizon):
+def build_events(bars, ticker, width, k, horizon, tsa_cfg=TSAConfig()):
     #@requires bars time-ordered for a single ticker
     #@ensures one sample per COMPRESSED bar that has a finite window
     #         and a full labeling horizon
-    tsa = analyze(bars)
+    tsa = analyze(bars, tsa_cfg)
     events = tsa.index[tsa["state"] == COMPRESSED]
     lab = triple_barrier(bars, tsa["atr"], k, horizon, events=events)
     if lab.empty:

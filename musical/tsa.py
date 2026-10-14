@@ -37,6 +37,10 @@ class TSAConfig:
     atr_long: int = 50
     lookback: int = 252      # history the percentiles are ranked against
     pct_threshold: float = 0.20
+    # Intraday: rank each bar only against the same time of day over the
+    # last `seasonal_days` sessions, so the open/close volatility U-shape
+    # isn't mistaken for compression. None = daily bars (rank vs lookback).
+    seasonal_days: int | None = None
 
 
 def true_range(bars):
@@ -49,6 +53,15 @@ def true_range(bars):
     ], axis=1).max(axis=1)
 
 
+def rank_pct(series, cfg):
+    #@ensures \result[t] is series[t]'s percentile among its own recent
+    #         history (same time of day only, if cfg.seasonal_days)
+    if cfg.seasonal_days is None:
+        return series.rolling(cfg.lookback).rank(pct=True)
+    return series.groupby(series.index.time, group_keys=False).transform(
+        lambda s: s.rolling(cfg.seasonal_days).rank(pct=True))
+
+
 def analyze(bars, cfg=TSAConfig()):
     #@requires bars has open,high,low,close columns, time-ordered
     #@ensures \result indexed like bars with columns
@@ -57,11 +70,11 @@ def analyze(bars, cfg=TSAConfig()):
     logret = np.log(close).diff()
 
     rv = logret.rolling(cfg.n_vol).std()
-    vol_pct = rv.rolling(cfg.lookback).rank(pct=True)
+    vol_pct = rank_pct(rv, cfg)
 
     sma = close.rolling(cfg.bb_n).mean()
     bandwidth = 4 * close.rolling(cfg.bb_n).std() / sma
-    bw_pct = bandwidth.rolling(cfg.lookback).rank(pct=True)
+    bw_pct = rank_pct(bandwidth, cfg)
 
     tr = true_range(bars)
     atr = tr.rolling(cfg.atr_n).mean()

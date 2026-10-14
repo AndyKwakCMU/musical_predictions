@@ -35,15 +35,16 @@ from musical.experiment import direction_from_proba, load_dataset
 from musical.tsa import analyze
 
 
-def load_market(raw_dir, end):
+def load_market(raw_dir, end, interval="1d"):
     #@ensures (bars_by_ticker, atr_by_ticker) truncated before `end`
     bars, atrs = {}, {}
-    for path in sorted(Path(raw_dir).glob("*_1d.csv")):
+    cfg = config.tsa_config(interval)
+    for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
         ticker = path.name.split("_")[0]
         b = load_bars(path)
         b = b[b.index < end]
         bars[ticker] = b
-        atrs[ticker] = analyze(b)["atr"]
+        atrs[ticker] = analyze(b, cfg)["atr"]
     return bars, atrs
 
 
@@ -74,7 +75,8 @@ def backtest(name, signals, bars, atrs, cost, k, horizon):
 
 def main():
     par = argparse.ArgumentParser()
-    par.add_argument("--dataset", default="data/datasets/events_w64_k2_h10.npz")
+    par.add_argument("--interval", default="1d", help="1d (yfinance) or 15m (IBKR)")
+    par.add_argument("--dataset", default=None)
     par.add_argument("--first-year", type=int, default=2010)
     par.add_argument("--last-year", type=int, default=2023)
     par.add_argument("--cost-mult", type=float, default=1.0)
@@ -93,8 +95,10 @@ def main():
                      base.slippage_bps * args.cost_mult)
     cfg = TrainConfig(emb_dim=0, dropout=0.5)   # selected in Test B (val loss)
 
-    X, y, meta = load_dataset(Path(args.dataset))
-    bars, atrs = load_market(config.RAW_DIR, end)
+    suffix = "" if args.interval == "1d" else f"_{args.interval}"
+    dataset = args.dataset or f"data/datasets/events_w64_k2_h10{suffix}.npz"
+    X, y, meta = load_dataset(Path(dataset))
+    bars, atrs = load_market(config.raw_dir(args.interval), end, args.interval)
     rng = np.random.default_rng(0)
 
     signals = {"cnn": [], "always_long": [], "coin_flip": []}
@@ -112,11 +116,11 @@ def main():
         m, log = backtest(name, pd.concat(parts), bars, atrs, cost,
                           config.BARRIER_K, config.HORIZON)
         results.append(m)
-        log.to_csv(out / f"trades_{name}_cost{args.cost_mult:g}.csv", index=False)
+        log.to_csv(out / f"trades_{name}_{args.interval}_cost{args.cost_mult:g}.csv", index=False)
         per_year[name] = log.groupby(pd.to_datetime(log["entry_time"]).dt.year)["r_net"].mean()
 
     fmt = lambda x: f"{x:.3f}"
-    print(f"\nTest C walk-forward {args.first_year}-{args.last_year}, costs x{args.cost_mult:g}")
+    print(f"\nTest C walk-forward {args.interval} {args.first_year}-{args.last_year}, costs x{args.cost_mult:g}")
     print(pd.DataFrame(results).set_index("strategy").to_string(float_format=fmt))
     print("\nmean net R per trade by year:")
     print(pd.DataFrame(per_year).to_string(float_format=fmt))

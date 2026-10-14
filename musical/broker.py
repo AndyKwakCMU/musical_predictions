@@ -33,10 +33,11 @@ BAR_SIZES = {
     "30m": "30 mins", "1h": "1 hour", "60m": "1 hour", "1d": "1 day",
 }
 # How much history to ask for per request, sized to stay well under
-# IBKR's per-request bar limits
+# IBKR's per-request limits (measured 2026-10-13: 6 M of 5m bars ~13s,
+# 2 Y of 15m bars ~20s on a paper account)
 DEFAULT_CHUNK = {
-    "1 min": "1 W", "2 mins": "2 W", "5 mins": "1 M", "15 mins": "1 M",
-    "30 mins": "1 M", "1 hour": "6 M", "1 day": "10 Y",
+    "1 min": "1 M", "2 mins": "2 M", "5 mins": "6 M", "15 mins": "2 Y",
+    "30 mins": "2 Y", "1 hour": "2 Y", "1 day": "10 Y",
 }
 
 
@@ -46,14 +47,16 @@ def _default_ib():
 
 
 def connect(host="127.0.0.1", port=4002, client_id=1, readonly=True,
-            live=False, ib_factory=_default_ib):
+            live=False, timeout=10, ib_factory=_default_ib):
     #@requires port is a paper port, or live=True
     #@ensures \result is a connected IB instance
     if port not in PAPER_PORTS and not live:
         raise ValueError(f"port {port} is not a paper port; pass live=True "
                          f"only if you really mean to touch a live account")
     ib = ib_factory()
-    ib.connect(host, port, clientId=client_id, readonly=readonly)
+    # timeout bounds ib_async's startup sync (positions/account), which
+    # can stall on some Gateway setups even though market data works
+    ib.connect(host, port, clientId=client_id, readonly=readonly, timeout=timeout)
     return ib
 
 
