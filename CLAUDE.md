@@ -18,11 +18,12 @@ All of the code in `docs/plan.md` is built. Results so far are in `docs/experime
 - **Test A (TSA gate): PASS.** COMPRESSED bars are followed by larger moves than noise bars and than a low-vol control.
 - **Test B (CNN direction): FAIL.** The CNN has no directional edge over coin flip, always-long, momentum, or logistic regression on 2021–2023.
 - **Test C (walk-forward 2010–2023, with costs): FAIL.** The CNN is about 88% long and underperforms always-long on the same gated events.
-- **IBKR:** connection, historical data, and a dry-run signal runner are built and unit-tested with a fake IB object. They have **not** been run against a real Gateway. Order placement is intentionally **not written**.
+- **IBKR:** verified live against IB Gateway paper (port 4002). Historical data works. Account endpoints (positions, account summary) time out on this Gateway, so `ib_check.py` treats them as optional. `TRADES` intraday bars come back already split-adjusted. A dry-run signal runner exists. Order placement is intentionally **not written**.
+- **Intraday round (15m, 30 names, IBKR):** the gate is time-of-day-aware (`TSAConfig(seasonal_days=40)`) and Test A passes. Test B status is in `docs/experiments.md`. Raw data lives in `data/raw_ib/`, and the dataset is `data/datasets/events_w64_k2_h10_15m.npz`.
 
 **The held-out period 2024-01-01+ (`config.DEV_END`) is untouched.** Only `walk_forward.py --final` may use it, once, after a model passes Test B.
 
-Next decision for the user: how to attack direction. Options are listed at the end of the Test B entry in `docs/experiments.md`. Intraday data via IBKR is the main one.
+Pre-declared intraday settings and splits (train 2016–2020 / val 2021–2022 / test 2023) are in `docs/experiments.md`. `config.INTRADAY_*` holds them.
 
 **yfinance limits intraday history.** 1m data only goes back about 7 days, and other sub-daily intervals about 60 days. Use `data_fetch.py --source ib` for real intraday history.
 
@@ -30,14 +31,14 @@ Next decision for the user: how to attack direction. Options are listed at the e
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also installs `musical` editable
-.venv/bin/pytest                                                       # 56 tests, ~4s, no network
+.venv/bin/pytest                                                       # 60 tests, no network
 
 # data
 .venv/bin/python scripts/data_fetch.py AAPL 2000-01-01 2026-01-01 1d data/raw          # yfinance
 .venv/bin/python scripts/data_fetch.py AAPL 2026-01-01 2026-10-01 5m data/raw --source ib  # IBKR (Gateway on 4002)
 # (universe: data/universe.txt; refetch all with a loop over it)
 
-# experiments (dev period only)
+# experiments (dev period only); add --interval 15m for the intraday round (reads data/raw_ib/)
 .venv/bin/python scripts/tsa_eval.py                 # Test A
 .venv/bin/python scripts/build_dataset.py            # -> data/datasets/events_w64_k2_h10.npz
 .venv/bin/python scripts/model_train.py              # -> models/*.pt + models/trained_params.csv

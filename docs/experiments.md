@@ -116,3 +116,63 @@ Without this, the gate is distorted badly. On synthetic U-shaped data, the naive
 **Splits (Test B):** train 2016–2020, val 2021–2022, test 2023. The holdout is still 2024-01-01 onward, untouched.
 
 **Cost note:** 2 bps slippage per side is a much bigger share of a 15-minute ±2 ATR bracket than of a daily one. Expect costs to bite.
+
+**Data notes (after download):** all 30 files cover 2016-01-04 → 2026-10-12 with about 26 bars per session. Two exceptions:
+- PEP starts 2017-12-20. IBKR returns no data before PEP's NYSE→NASDAQ listing move.
+- AVGO starts 2016-02-02, when the post-merger Broadcom began trading.
+
+Both gaps fall in the train period, so both names stay in.
+
+### Intraday Test A (15m, 30 names, dev period < 2024)
+
+| group | bars | hit rate | median excursion (ATR) | median \|ret\| % |
+|---|---|---|---|---|
+| ALL | 1,519,178 | 0.588 | 2.374 | 0.429 |
+| NOISE | 1,329,688 | 0.581 | 2.340 | 0.441 |
+| LOW_VOL_CONTROL | 156,260 | 0.640 | 2.657 | 0.372 |
+| COMPRESSED | 189,490 | 0.635 | 2.641 | 0.354 |
+| EPISODE_START | 26,919 | 0.738 | 3.269 | 0.407 |
+
+COMPRESSED beats NOISE on median excursion in 97% of 238 ticker-years, and every ticker wins at least 88% of its years.
+
+**Result: PASS** by the plan's criterion: larger moves in ATR units than unconditional bars, consistent across tickers and years. Two caveats are stronger here than on daily bars:
+- **Compression adds nothing beyond plain low volatility.** COMPRESSED (0.635) ≈ LOW_VOL_CONTROL (0.640).
+- **In percent terms, compressed moves are smaller.** The median |ret| is 0.354% vs 0.441% for noise. The ATR "edge" partly reflects a small denominator, and per-trade costs are a fixed share of price. A ±2 ATR bracket on a compressed 15m bar is narrow, so costs eat a larger share of R.
+
+### Intraday Test B (15m): train 2016–2020, val 2021–2022, test 2023
+
+**Model selection.** I trained the same 12-run grid as on daily bars: ticker emb {4, 0} × dropout {0.3, 0.5} × seed {0, 1, 2}. Every run had 121,316 train and 44,047 val events and early-stopped after 7–11 epochs.
+
+Validation log loss:
+
+| emb | dropout | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|---|
+| 4 | 0.3 | 0.9013 | 0.9008 | 0.8999 |
+| 4 | 0.5 | 0.9012 | 0.9011 | **0.8995** |
+| 0 | 0.3 | 0.9013 | 0.9010 | 0.9002 |
+| 0 | 0.5 | 0.9002 | 0.9009 | 0.8996 |
+
+The class prior scores 1.0946 on val. All 12 configs are within 0.002 of each other, so the choice is effectively noise.
+
+**Selected:** emb 4, dropout 0.5, seed 2 (`cadence_i15_e4_d0.5_s2_20261013_225255.pt`). It was scored once on 2023 (23,086 events, pre-cost R):
+
+| strategy | dir acc on UP/DOWN | mean R | log loss |
+|---|---|---|---|
+| coin flip | 0.496 | −0.016 | — |
+| always long | 0.521 | **+0.035** | — |
+| momentum | 0.508 | +0.004 | — |
+| logistic | 0.514 | −0.003 | 0.926 |
+| cnn | 0.519 | −0.006 | **0.916** |
+
+On 2023 the class prior scores 1.0979.
+
+**Result: FAIL.** This is the same pattern as on daily bars. The CNN beats the prior by a lot on log loss (0.916 vs 1.098), but almost all of that gain is in predicting **whether** price breaks out (NONE vs move), not **which way**:
+- Its direction accuracy (0.519) does not beat always-long (0.521).
+- Its mean R is negative before costs.
+
+Per the plan, Test C is skipped because no model passed Test B. The holdout (2024+) is still untouched.
+
+**Takeaway across both rounds.** The gate and the CNN agree on one thing: there is a learnable signal for "a big move is coming." Neither daily nor 15m bars contain a learnable signal for its direction with these inputs. Remaining directions worth trying, none of them pre-registered yet:
+1. **Trade the volatility, not the direction.** For example, a long straddle or strangle at compression, using the CNN's P(move) as the filter. This needs options data.
+2. **Add directional context that price windows lack.** Candidates are market or sector state (SPY/QQQ trend at the event), order-flow or imbalance data, and news or earnings calendars.
+3. **Long-only with P(move) filtering.** The drift edge exists (always-long +0.035R pre-cost intraday, +0.045R net on daily). Test whether conditioning on the CNN's P(move) raises long expectancy enough to survive costs.
