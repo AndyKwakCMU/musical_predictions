@@ -89,4 +89,6 @@ Dates are `YYYY-MM-DD`, the end date is exclusive, and `out` defaults to `data/`
 
 ## Roadmap
 
-See `docs/plan.md` for the revival plan (phases with exit checks), backtesting plan, and IBKR (`ib_async`, IB Gateway paper port 4002) integration steps.
+**New direction (2026-10-13):** the project is being rebuilt around the musical model in `docs/superpowers/specs/2026-10-13-market-harmony-design.md`: inferred rhythm, a confidence-ranked list of keys, a learned and musically named jazz chord vocabulary, and cadences. Implementation plans: `docs/superpowers/plans/2026-10-13-roadmap.md` (plans 1–4, each ending at a gate). Nothing from them is built yet.
+
+Historical: `docs/plan.md` was the revival plan for the original volatility-compression system (Tests A–D, all logged in `docs/experiments.md`).

@@ -164,7 +164,7 @@ All gates use only the dev period (< 2024-01-01). The settings for each gate are
 - Gates run in order, each against shuffled/surrogate controls. At the first failure, stop and bring the results to Andy; no automatic fallback (e.g. no silently swapping in clock-time beats).
 - Stay on 15m unless the Rhythm gate says it's too coarse.
 - Beats and measures run continuously across sessions. The overnight gap is treated as a rest, not a reset, and the onset envelope still sees the open.
-- The first implementation plan details the build through the Rhythm gate (plus the possible 5m switch), then checkpoints with Andy. Later layers get their own plan once earlier gates pass, because their details depend on what the earlier layers find.
+- Andy asked for plans covering the whole project (2026-10-13). Plans 2–4 are marked provisional: each starts by re-reading the previous gate's results and updating its defaults before any code. Every gate is still a stop-and-report checkpoint.
 
 ## Left to the builder
 

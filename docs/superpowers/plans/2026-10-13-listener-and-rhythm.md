@@ -164,6 +164,8 @@ def test_half_day_sessions_do_not_break_tracking():  # real-shaped index with a 
   - `Listener(nn.Module)`, built as `Listener(n_inputs, ticker_vocab, cfg)`:
     - `forward(x[B,C,T], ticker_idx[B]) -> (B, len(TARGET_COLS)*HORIZON_K, T)`. The output at t predicts targets at t+1..t+K and depends only on x[..., ≤t].
     - Ticker embedding slot 0 is reserved for unseen tickers, as in `musical/cnn.py`.
+    - `encode(x, ticker_idx) -> (B, cfg.channels, T)` returns the last residual block's hidden states (causal; same truncation property). `forward` = output head applied to `encode`. Later plans (harmony, cadence) consume `encode`.
+    - Also stores `input_cols` and the train-set input standardization (mean/std) so later plans can feed it the same way.
   - `make_windows(series_by_ticker: dict[str, pd.DataFrame], input_cols, start, end, window) -> list[tuple[str, int]]`: (ticker, end_position) pairs whose whole window plus K future bars lie in [start, end) with no NaN.
   - `train_listener(series_by_ticker, input_cols, cfg, train_range, val_range) -> (model, history)`:
     - MSE on standardized targets (train-set mean/std, stored on the model);
@@ -174,7 +176,7 @@ def test_half_day_sessions_do_not_break_tracking():  # real-shaped index with a 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_listener_output_at_t_ignores_future_inputs():   # perturb x[..., 100:] -> out[..., :100] unchanged (atol 1e-6), eval mode
+def test_listener_output_at_t_ignores_future_inputs():   # perturb x[..., 100:] -> forward AND encode [..., :100] unchanged (atol 1e-6), eval mode
 def test_windows_skip_nan_and_respect_split_end():       # NaN at bar 300 -> no window covers it; no window+K crosses `end`
 def test_listener_overfits_tiny_periodic_series():       # 1 ticker, period-5 onset, cpu, 3 epochs -> val_loss_onset falls below 50% of epoch-1
 def test_save_load_round_trip_gives_same_predictions(tmp_path):
