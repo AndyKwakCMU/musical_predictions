@@ -17,6 +17,7 @@ All of the code in `docs/plan.md` is built. Results so far are in `docs/experime
 
 - **Test A (TSA gate): PASS.** COMPRESSED bars are followed by larger moves than noise bars and than a low-vol control.
 - **Test B (CNN direction): FAIL.** The CNN has no directional edge over coin flip, always-long, momentum, or logistic regression on 2021–2023.
+- **Test D (long-only, filtered by CNN P(move), with costs): FAIL** on daily and 15m. See `scripts/long_filter_eval.py`.
 - **Test C (walk-forward 2010–2023, with costs): FAIL.** The CNN is about 88% long and underperforms always-long on the same gated events.
 - **IBKR:** verified live against IB Gateway paper (port 4002). Historical data works. Account endpoints (positions, account summary) time out on this Gateway, so `ib_check.py` treats them as optional. `TRADES` intraday bars come back already split-adjusted. A dry-run signal runner exists. Order placement is intentionally **not written**.
 - **Intraday round (15m, 30 names, IBKR):** the gate is time-of-day-aware (`TSAConfig(seasonal_days=40)`) and Test A passes. Test B status is in `docs/experiments.md`. Raw data lives in `data/raw_ib/`, and the dataset is `data/datasets/events_w64_k2_h10_15m.npz`.
@@ -31,7 +32,7 @@ Pre-declared intraday settings and splits (train 2016–2020 / val 2021–2022 /
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also installs `musical` editable
-.venv/bin/pytest                                                       # 60 tests, no network
+.venv/bin/pytest                                                       # 64 tests, no network
 
 # data
 .venv/bin/python scripts/data_fetch.py AAPL 2000-01-01 2026-01-01 1d data/raw          # yfinance
@@ -44,6 +45,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also inst
 .venv/bin/python scripts/model_train.py              # -> models/*.pt + models/trained_params.csv
 .venv/bin/python scripts/cnn_eval.py models/<run>.pt # Test B
 .venv/bin/python scripts/walk_forward.py             # Test C (add --cost-mult 2 for stress)
+.venv/bin/python scripts/long_filter_eval.py models/<run>.pt  # Test D (long-only, P(move) filter)
 
 # IBKR
 .venv/bin/python scripts/ib_check.py                       # connectivity check

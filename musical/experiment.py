@@ -14,14 +14,19 @@
 
 ##############################################################################
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from musical import config
+from musical.data import load_bars
 from musical.dataset import CHANNELS, LABEL_TO_INT
 from musical.labels import NONE
+from musical.tsa import analyze
 
 
 def load_dataset(path):
@@ -68,3 +73,35 @@ def log_loss(proba, y):
     #@ensures mean negative log-likelihood of the true class
     p = np.clip(proba[np.arange(len(y)), y], 1e-12, 1.0)
     return float(-np.log(p).mean())
+
+
+def move_proba(proba):
+    #@ensures \result[i] = P(UP) + P(DOWN): "a breakout happens either way"
+    return proba[:, LABEL_TO_INT["UP"]] + proba[:, LABEL_TO_INT["DOWN"]]
+
+
+def quantile_cutoff(values, keep_frac):
+    #@requires 0 < keep_frac <= 1
+    #@ensures values >= \result keeps about the top keep_frac of values;
+    #         keep_frac == 1 keeps everything
+    if keep_frac >= 1.0:
+        return -np.inf
+    return float(np.quantile(values, 1.0 - keep_frac))
+
+
+def perm_pvalue(observed, null):
+    #@ensures fraction of null draws scoring >= observed
+    return float((np.asarray(null) >= observed).mean())
+
+
+def load_market(raw_dir, end, interval="1d"):
+    #@ensures (bars_by_ticker, atr_by_ticker) truncated before `end`
+    bars, atrs = {}, {}
+    cfg = config.tsa_config(interval)
+    for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
+        ticker = path.name.split("_")[0]
+        b = load_bars(path)
+        b = b[b.index < end]
+        bars[ticker] = b
+        atrs[ticker] = analyze(b, cfg)["atr"]
+    return bars, atrs

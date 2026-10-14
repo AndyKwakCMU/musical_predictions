@@ -176,3 +176,61 @@ Per the plan, Test C is skipped because no model passed Test B. The holdout (202
 1. **Trade the volatility, not the direction.** For example, a long straddle or strangle at compression, using the CNN's P(move) as the filter. This needs options data.
 2. **Add directional context that price windows lack.** Candidates are market or sector state (SPY/QQQ trend at the event), order-flow or imbalance data, and news or earnings calendars.
 3. **Long-only with P(move) filtering.** The drift edge exists (always-long +0.035R pre-cost intraday, +0.045R net on daily). Test whether conditioning on the CNN's P(move) raises long expectancy enough to survive costs.
+
+---
+
+## 2026-10-13 — Test D (long-only, P(move) filter): settings declared BEFORE seeing results
+
+**Hypothesis.** The CNN knows *whether* a move is coming, not which way. Gated events have a long drift. So going long only on gated events where the CNN's P(move) = P(UP) + P(DOWN) is high should beat going long on every gated event, after costs.
+
+**Models.** The already-selected Test B models. Nothing is retrained.
+- Daily: `cadence_grid_e0_d0.5_s0_*`. Val 2018–2020, test 2021–2023.
+- 15m: `cadence_i15_e4_d0.5_s2_*`. Val 2021–2022, test 2023.
+
+**Filter.** Keep an event if P(move) ≥ c. The cutoff c is the (1−q) quantile of P(move) over the **val** events, with q ∈ {1.0, 0.5, 0.3, 0.2, 0.1}. q = 1.0 means no filter, i.e. always-long. q is chosen as the one with the highest val net expectancy among the options with ≥ 200 val trades. If q = 1.0 wins, the filter adds nothing and the test fails.
+
+**Scoring.** Use the real backtester (`simulate_trades` + `run_portfolio`):
+- next-open entry, ±2 ATR, H = 10;
+- 1% risk per trade, max 10 positions;
+- commission + 2 bps slippage per side.
+
+The cutoff from val is applied unchanged to test, which is scored once.
+
+**Pass (all of the following on test):**
+1. Filtered-long net expectancy > 0 R.
+2. Filtered-long net expectancy > always-long (all gated events) net expectancy.
+3. A permutation check: keep a random subset of the same fraction of the same test events, 200 times. Filtered-long must beat ≥ 95% of these random subsets on net expectancy.
+4. Net expectancy stays > 0 at 2× costs.
+
+The holdout (2024+) stays untouched. A pass on either resolution would justify a one-time `--final` holdout run of that exact configuration.
+
+### Test D results (net of costs, real backtester)
+
+**Daily.** Val 2018–2020 picked keep_frac 0.2 (P(move) ≥ 0.805), which scored +0.118R on val vs +0.050R for no filter. On test 2021–2023:
+
+| strategy | trades | hit rate | net R | CAGR | Sharpe | max DD |
+|---|---|---|---|---|---|---|
+| always long | 841 | 0.521 | +0.010 | 4.1% | 0.47 | −12.5% |
+| filtered long | 425 | 0.518 | −0.012 | 0.2% | 0.06 | −9.6% |
+| filtered long, 2× cost | 425 | 0.508 | −0.028 | −0.5% | −0.08 | −9.9% |
+
+Random same-size subsets averaged −0.003R, with a 95th percentile of +0.037R. The permutation p-value is 0.665.
+
+**15m.** Val 2021–2022 picked keep_frac 0.1 (P(move) ≥ 0.963). Every option lost money on val, but the filter lost less: −0.047R vs −0.103R with no filter. On test 2023:
+
+| strategy | trades | hit rate | net R | CAGR | Sharpe | max DD |
+|---|---|---|---|---|---|---|
+| always long | 4,651 | 0.490 | −0.084 | −16.1% | −2.59 | −17.1% |
+| filtered long | 756 | 0.528 | −0.060 | −3.5% | −1.23 | −3.9% |
+| filtered long, 2× cost | 756 | 0.526 | −0.189 | −7.1% | −2.53 | −7.2% |
+
+Random same-size subsets averaged −0.065R, with a 95th percentile of −0.025R. The permutation p-value is 0.430.
+
+**Result: FAIL on both resolutions.**
+- Daily fails all 4 checks. The val improvement did not carry over to test.
+- 15m passes only check 2 (it loses less than always-long). A random subset of the same size loses just as little, so this is a portfolio-crowding effect (fewer trades means fewer skipped and overlapping positions), not a P(move) signal.
+- On 15m bars, costs flip the pre-cost long drift (+0.035R in Test B) to about −0.08R net. A ±2 ATR bracket on compressed 15m bars is too narrow for 2 bps per side plus commission.
+
+Note: on daily bars, always-long takes only 841 of 11,455 test events because of the one-position-per-ticker and 10-position caps. Gated events cluster in calm markets.
+
+The holdout (2024+) is still untouched.

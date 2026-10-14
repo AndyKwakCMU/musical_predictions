@@ -29,23 +29,8 @@ import pandas as pd
 from musical import config
 from musical.backtest import CostModel, metrics, run_portfolio, simulate_trades
 from musical.cnn import TrainConfig, predict_proba, train
-from musical.data import load_bars
 from musical.dataset import time_split
-from musical.experiment import direction_from_proba, load_dataset
-from musical.tsa import analyze
-
-
-def load_market(raw_dir, end, interval="1d"):
-    #@ensures (bars_by_ticker, atr_by_ticker) truncated before `end`
-    bars, atrs = {}, {}
-    cfg = config.tsa_config(interval)
-    for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
-        ticker = path.name.split("_")[0]
-        b = load_bars(path)
-        b = b[b.index < end]
-        bars[ticker] = b
-        atrs[ticker] = analyze(b, cfg)["atr"]
-    return bars, atrs
+from musical.experiment import direction_from_proba, load_dataset, load_market
 
 
 def fold_signals(X, y, meta, year, cfg, seed):
