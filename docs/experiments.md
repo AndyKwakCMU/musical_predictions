@@ -234,3 +234,37 @@ Random same-size subsets averaged −0.065R, with a 95th percentile of −0.025R
 Note: on daily bars, always-long takes only 841 of 11,455 test events because of the one-position-per-ticker and 10-position caps. Gated events cluster in calm markets.
 
 The holdout (2024+) is still untouched.
+
+---
+
+## 2026-10-14 — Rhythm gate (plan 1, market-harmony design): settings declared BEFORE seeing results
+
+**Context.** The project now follows `docs/superpowers/specs/2026-10-13-market-harmony-design.md`. Tests A–D above tested the old volatility-compression framing. This is the first gate of the new design: is there a market pulse, inferred from the 15m bars, that is more than the trading-day clock?
+
+**Data.** IBKR 15m RTH bars, 30 names, 2016-01-04 → 2022-12-30. Nothing ≥ 2023-01-01 is loaded.
+
+**Method** (`musical/rhythm.py`, all causal):
+- **Onset strength:** mean of trailing-520-bar z-scores of |ret/ATR|, positive volume surprise vs the same time of day over 40 sessions, and direction turns.
+- **Tempo:** the most prominent local peak of the trailing-520-bar onset autocorrelation over lags 2–24 bars. Prominence is the strength; no peak means strength 0.
+- **Beats:** an online tracker.
+- **Meter:** the accent autocorrelation over the last 32 beats, choosing 2, 3 or 4.
+
+**Surrogate.** `clock_shuffle` with seed 0. Within each time-of-day slot, the rows of the onset ingredients (`ret_atr`, `vol_surprise`) are permuted across dates. Onset, tempo and beats are then recomputed on the shuffled data. This keeps the clock exactly and destroys any other rhythm.
+
+**Listeners.** `scripts/listener_train.py`: a causal TCN predicting the next 4 bars of ret/ATR, range/ATR, volume surprise and onset. Train is < 2021, early-stopped on 2021–2022.
+- **full:** price + clock + SPY/QQQ + onset.
+- **clock:** clock features only.
+
+**Pass:** all three checks below.
+1. **Periodicity.** Per ticker-year (2016–2022), the real median tempo strength > the surrogate's, in ≥ 70% of ticker-years.
+2. **Tempo stability.** Per ticker-year, the median |Δ log period| between consecutive sessions is lower for real than for the surrogate, in ≥ 70% of ticker-years. The session's period is taken at its last bar, and only sessions where both have a period count.
+3. **Beyond the clock.** On val 2021–2022, the full listener's onset loss (MSE on the standardized onset, t+1..t+4, scored half of non-overlapping windows) is ≥ 2% lower (relative) than the clock-only listener's overall, **and** lower in ≥ 70% of tickers.
+
+**Reported, not gated:**
+- the meter distribution;
+- the median beat interval per ticker, in bars;
+- the correlation of each onset ingredient with beats.
+
+If the median beat interval is ≤ 2 bars, the next step is 5m data (per the spec), not the harmony layer.
+
+**Known caveat.** Before this pre-registration, real AAPL < 2023 tempo was looked at once, during development. It showed that a naive argmax picked lag 2 everywhere, which is why tempo uses peak prominence. No gate statistic was computed. Listener training logs (pooled val losses per epoch) were visible while these rules were written; the per-ticker check and the 2% threshold were not tuned to them.
