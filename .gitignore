@@ -18,3 +18,4 @@ STOP
 data/datasets/
 data/signals.csv
 data/raw_ib/
+.superpowers/
