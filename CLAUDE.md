@@ -32,7 +32,7 @@ Pre-declared intraday settings and splits (train 2016–2020 / val 2021–2022 /
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also installs `musical` editable
-.venv/bin/pytest                                                       # 95 tests, no network
+.venv/bin/pytest                                                       # 96 tests, no network
 
 # data
 .venv/bin/python scripts/data_fetch.py AAPL 2000-01-01 2026-01-01 1d data/raw          # yfinance
@@ -91,6 +91,6 @@ Dates are `YYYY-MM-DD`, the end date is exclusive, and `out` defaults to `data/`
 
 ## Roadmap
 
-**New direction (2026-10-13):** the project is being rebuilt around the musical model in `docs/superpowers/specs/2026-10-13-market-harmony-design.md`: inferred rhythm, a confidence-ranked list of keys, a learned and musically named jazz chord vocabulary, and cadences. Implementation plans: `docs/superpowers/plans/2026-10-13-roadmap.md` (plans 1–4, each ending at a gate). **Plan 1 is built** (`musical/features.py`, `rhythm.py`, `listener.py`, `surrogates.py`; `scripts/listener_train.py`, `rhythm_gate.py`). The **Rhythm gate FAILED** (2026-10-14): there is no periodic pulse beyond the trading-day clock, although the listener predicts upcoming activity 15% better than the clock alone. Plans 2–4 wait on Andy's decision. See `docs/experiments.md`.
+**New direction (2026-10-13):** the project is being rebuilt around the musical model in `docs/superpowers/specs/2026-10-13-market-harmony-design.md`: inferred rhythm, a confidence-ranked list of keys, a learned and musically named jazz chord vocabulary, and cadences. Implementation plans: `docs/superpowers/plans/2026-10-13-roadmap.md` (plans 1–4, each ending at a gate). **Plan 1 is built** (`musical/features.py`, `rhythm.py`, `listener.py`, `surrogates.py`; `scripts/listener_train.py`, `rhythm_gate.py`). The **Rhythm gate FAILED** (2026-10-14), but the review found that its stability check could never pass and its periodicity check only detects strong pulses. So the result is inconclusive: no strong non-clock pulse was detected. The listener predicts upcoming activity 15% better than the clock alone. Plans 2–4 wait on Andy's decision. See `docs/experiments.md`.
 
 Historical: `docs/plan.md` was the revival plan for the original volatility-compression system (Tests A–D, all logged in `docs/experiments.md`).

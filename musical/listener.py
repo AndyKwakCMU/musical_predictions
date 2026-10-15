@@ -37,6 +37,7 @@ from musical.rhythm import onset_strength
 TARGET_COLS = ["ret_atr", "range_atr", "vol_surprise", "onset"]
 HORIZON_K = 4
 CONTEXT_TICKERS = ["SPY", "QQQ"]     # the rest of the orchestra
+RTH_OPEN_MIN, RTH_CLOSE_MIN = 570, 960   # 09:30-16:00 exchange time
 
 
 @dataclass
@@ -301,12 +302,15 @@ def load_listener(path, device="cpu"):
 
 def load_series(raw_dir, end, interval="15m"):
     #@ensures {ticker: features + SPY/QQQ context + onset} built only from
-    #         bars strictly before `end`
+    #         regular-hours bars strictly before `end` (stray extended-hours
+    #         bars in the raw files are dropped)
     end = pd.Timestamp(end)
     feats = {}
     for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
         bars = load_bars(path)
-        bars = bars[bars.index < end]
+        minutes = bars.index.hour * 60 + bars.index.minute
+        rth = (minutes >= RTH_OPEN_MIN) & (minutes < RTH_CLOSE_MIN)
+        bars = bars[rth & (bars.index < end)]
         feats[path.name.split("_")[0]] = bar_features(bars)
     context = {name: feats[name] for name in CONTEXT_TICKERS if name in feats}
     out = {}

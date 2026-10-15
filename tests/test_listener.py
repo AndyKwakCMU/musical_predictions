@@ -110,3 +110,21 @@ def test_load_series_never_returns_bars_at_or_after_end(tmp_path):
         assert df.index.max() < pd.Timestamp(end)
         for col in ["onset", "SPY_ret_atr", "QQQ_vol_surprise", "first_bar"]:
             assert col in df.columns
+
+
+def test_load_series_drops_extended_hours_bars(tmp_path):
+    # one stray pre/post-market session (seen in real PFE data) must not
+    # leak odd time slots into the features and blank weeks of onsets
+    from musical.listener import load_series
+    from tests.test_features import intraday_bars
+    bars = intraday_bars(days=120)            # > 40-session + 520-bar warm-up
+    day = bars.index.normalize().unique()[100]
+    extra = bars.iloc[:2].copy()
+    extra.index = pd.DatetimeIndex([day + pd.Timedelta(hours=7),
+                                    day + pd.Timedelta(hours=18)])
+    bars = pd.concat([bars, extra]).sort_index()
+    write_protocol(tmp_path / "SPY_2020-01-01_2020-04-01_15m.csv", bars)
+    df = load_series(tmp_path, "2021-01-01")["SPY"]
+    minutes = df.index.hour * 60 + df.index.minute
+    assert ((minutes >= 570) & (minutes < 960)).all()
+    assert df["onset"].iloc[-200:].notna().all()

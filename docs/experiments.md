@@ -303,9 +303,21 @@ If the median beat interval is ≤ 2 bars, the next step is 5m data (per the spe
 
 **Result: FAIL** (checks 1–2). The 5m branch does not apply, since beats are not ≤ 2 bars apart.
 
-**What it means:**
-- **No steady pulse beyond the clock.** Measured as a periodic autocorrelation peak at 2–24 bars, the real market has **less** pulse than a fake market that keeps only the trading-day schedule. Whatever periodicity the tracker finds is clock-locked. Volatility clustering in real data smooths the autocorrelation and hides even those clock peaks.
-- **The listener does hear structure beyond the clock** (check 3, every ticker). But this check rewards any predictability of upcoming activity, including plain volatility clustering. It does not show a beat.
-- In musical terms: on 15m bars, the market's "time" looks like the schedule of the trading day plus rubato bursts of activity, not a steady tempo.
+**What it means** (corrected after the final code review, 2026-10-14):
+- **The gate could not have passed as specified.** Check 2 compares medians of a session-to-session period change. With a 520-bar (~20-session) tempo window, consecutive sessions share ~95% of their data, so the median change is 0 for real and surrogate alike, and a tie counts as FAIL. The reviewer's simulation confirms this: a strong, clearly steadier injected pulse still scores 0.000 vs 0.000. Also, the code compared real and surrogate drift unpaired; the registration said "paired sessions". This made no difference here, but it was a deviation.
+- **Check 1 is only a weak test.**
+  - The strength statistic (peak prominence of a 520-sample ACF) has a noise floor of ~0.09–0.10. Shuffling raises noise peaks while volatility clustering suppresses them, so with **no** pulse, real data already scores slightly below the surrogate.
+  - The reviewer's simulation: real only wins once a non-clock pulse carries ≳6% of onset variance.
+  - So "0% of ticker-years" means **no strong (≳6% of variance) non-clock pulse at 2–24 bars was detected**. It does **not** mean the market has "less pulse than a fake market".
+  - The daily clock period (26 bars) was outside the searched lags, so this test says nothing about clock-locked rhythm either.
+- **The listener hears structure beyond the clock** (check 3, all 30 tickers, +15%). This rewards any predictability of upcoming activity, including volatility clustering, so it is not evidence of a beat. It was scored on the val set used for early stopping, the same for both models.
+- **The plan's gate also drifted from the spec.** The spec asks whether *beat-synchronous* onsets are more periodic than surrogates. Check 1 tested the raw onset series.
+- **Data robustness fix after the run.** `load_series` now keeps regular-hours bars only. One stray extended-hours PFE session (2018-02-28) had blanked ~2 months of that ticker's onsets. It affected 1 of 208 ticker-years, and the gate was not re-run.
+
+**Net:** this run neither shows a pulse nor rules out a modest one. A meaningful re-test needs a **new pre-registration** with:
+- a non-degenerate stability metric (e.g. share of sessions whose period changes, paired);
+- a surrogate comparison calibrated so the null gives ~50% real-wins;
+- beat-synchronous periodicity, as the spec states;
+- lags that include 26 if clock rhythm is in question.
 
 Per the spec, the build stops here for Andy's decision. There is no automatic fallback.
