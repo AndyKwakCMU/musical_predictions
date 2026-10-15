@@ -55,3 +55,13 @@ def test_clock_shuffle_keeps_clock_driven_pattern():
     before = df["volume"].groupby(df.index.time).mean()
     after = out["volume"].groupby(out.index.time).mean()
     assert np.allclose(before, after)
+
+
+def test_clock_shuffle_keeps_nan_rows_in_place():
+    # warm-up NaNs must stay at the start; shuffling them into the middle
+    # would poison every rolling window downstream
+    df = session_frame()
+    df.iloc[:260, df.columns.get_loc("onset")] = np.nan     # first 10 sessions
+    out = clock_shuffle(df, ["onset"], np.random.default_rng(4))
+    assert out["onset"].iloc[:260].isna().all()
+    assert out["onset"].iloc[260:].notna().all()
