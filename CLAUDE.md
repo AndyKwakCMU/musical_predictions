@@ -32,7 +32,7 @@ Pre-declared intraday settings and splits (train 2016–2020 / val 2021–2022 /
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also installs `musical` editable
-.venv/bin/pytest                                                       # 64 tests, no network
+.venv/bin/pytest                                                       # 95 tests, no network
 
 # data
 .venv/bin/python scripts/data_fetch.py AAPL 2000-01-01 2026-01-01 1d data/raw          # yfinance
@@ -46,6 +46,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # also inst
 .venv/bin/python scripts/cnn_eval.py models/<run>.pt # Test B
 .venv/bin/python scripts/walk_forward.py             # Test C (add --cost-mult 2 for stress)
 .venv/bin/python scripts/long_filter_eval.py models/<run>.pt  # Test D (long-only, P(move) filter)
+.venv/bin/python scripts/listener_train.py --variant full|clock    # self-supervised listener (GPU)
+.venv/bin/python scripts/rhythm_gate.py models/listener_full_*.pt models/listener_clock_*.pt  # Rhythm gate
 
 # IBKR
 .venv/bin/python scripts/ib_check.py                       # connectivity check
@@ -89,6 +91,6 @@ Dates are `YYYY-MM-DD`, the end date is exclusive, and `out` defaults to `data/`
 
 ## Roadmap
 
-**New direction (2026-10-13):** the project is being rebuilt around the musical model in `docs/superpowers/specs/2026-10-13-market-harmony-design.md`: inferred rhythm, a confidence-ranked list of keys, a learned and musically named jazz chord vocabulary, and cadences. Implementation plans: `docs/superpowers/plans/2026-10-13-roadmap.md` (plans 1–4, each ending at a gate). Nothing from them is built yet.
+**New direction (2026-10-13):** the project is being rebuilt around the musical model in `docs/superpowers/specs/2026-10-13-market-harmony-design.md`: inferred rhythm, a confidence-ranked list of keys, a learned and musically named jazz chord vocabulary, and cadences. Implementation plans: `docs/superpowers/plans/2026-10-13-roadmap.md` (plans 1–4, each ending at a gate). **Plan 1 is built** (`musical/features.py`, `rhythm.py`, `listener.py`, `surrogates.py`; `scripts/listener_train.py`, `rhythm_gate.py`). The **Rhythm gate FAILED** (2026-10-14): there is no periodic pulse beyond the trading-day clock, although the listener predicts upcoming activity 15% better than the clock alone. Plans 2–4 wait on Andy's decision. See `docs/experiments.md`.
 
 Historical: `docs/plan.md` was the revival plan for the original volatility-compression system (Tests A–D, all logged in `docs/experiments.md`).

@@ -268,3 +268,44 @@ The holdout (2024+) is still untouched.
 If the median beat interval is ≤ 2 bars, the next step is 5m data (per the spec), not the harmony layer.
 
 **Known caveat.** Before this pre-registration, real AAPL < 2023 tempo was looked at once, during development. It showed that a naive argmax picked lag 2 everywhere, which is why tempo uses peak prominence. No gate statistic was computed. Listener training logs (pooled val losses per epoch) were visible while these rules were written; the per-ticker check and the 2% threshold were not tuned to them.
+
+### Rhythm gate results
+
+**Listeners.**
+- Full: `listener_full_listener_full_s0_20261014_212748.pt`, best val loss 0.6445, early-stopped after 7 epochs (best at epoch 2–3).
+- Clock-only: `listener_clock_listener_clock_s0_20261014_212839.pt`, best val loss 0.8008, 10 epochs.
+
+**Run 1 was invalid** and is logged here for the record. `clock_shuffle` moved warm-up NaN rows into the middle of the series, so every rolling window in the surrogate was NaN and checks 1–2 had no data. The fix keeps NaN rows in place (`test_clock_shuffle_keeps_nan_rows_in_place`). The rules were unchanged for run 2, and check 3 was identical in both runs.
+
+**Run 2:**
+
+| year | tempo strength, real | tempo strength, surrogate | drift, real | drift, surrogate |
+|---|---|---|---|---|
+| 2016 | 0.068 | 0.094 | 0.000 | 0.000 |
+| 2017 | 0.069 | 0.093 | 0.000 | 0.000 |
+| 2018 | 0.068 | 0.097 | 0.000 | 0.000 |
+| 2019 | 0.068 | 0.093 | 0.000 | 0.000 |
+| 2020 | 0.068 | 0.097 | 0.000 | 0.000 |
+| 2021 | 0.070 | 0.096 | 0.000 | 0.000 |
+| 2022 | 0.070 | 0.095 | 0.000 | 0.000 |
+
+(Medians over tickers.)
+
+**Checks:**
+1. **Periodicity: FAIL.** Real tempo strength beats the clock-shuffled surrogate in **0%** of 208 ticker-years.
+2. **Stability: FAIL.** Real drifts less in 0% of ticker-years. The median session-to-session change is 0 for both, so every comparison is a tie. With a discrete period, this metric was degenerate as specified.
+3. **Beyond the clock: PASS.** Pooled val onset MSE is 0.7468 for the full listener vs 0.8792 for clock-only, a 15.1% gain. The full listener is better in **100%** of the 30 tickers.
+
+**Reported only:**
+- Median beat interval: 7 bars across tickers (range 5–8). The tracker mostly forces beats at the carried tempo, because the pulse is weak.
+- Meter shares at beats (median): 2 → 0.40, 3 → 0.31, 4 → 0.29. This is close to uniform, i.e. no clear meter.
+- Correlation of each ingredient with beat bars: |move| ≈ 0.18, volume burst ≈ 0.11, turns ≈ 0.08.
+
+**Result: FAIL** (checks 1–2). The 5m branch does not apply, since beats are not ≤ 2 bars apart.
+
+**What it means:**
+- **No steady pulse beyond the clock.** Measured as a periodic autocorrelation peak at 2–24 bars, the real market has **less** pulse than a fake market that keeps only the trading-day schedule. Whatever periodicity the tracker finds is clock-locked. Volatility clustering in real data smooths the autocorrelation and hides even those clock peaks.
+- **The listener does hear structure beyond the clock** (check 3, every ticker). But this check rewards any predictability of upcoming activity, including plain volatility clustering. It does not show a beat.
+- In musical terms: on 15m bars, the market's "time" looks like the schedule of the trading day plus rubato bursts of activity, not a steady tempo.
+
+Per the spec, the build stops here for Andy's decision. There is no automatic fallback.
