@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from musical.rhythm import onset_strength, tempo
+from musical.rhythm import meter, onset_strength, tempo, track_beats
 
 
 def pulse(n, period, seed=0, noise=0.1, start=0):
@@ -77,3 +77,63 @@ def test_persistent_but_aperiodic_activity_is_not_a_short_pulse():
     out = tempo(as_series(x)).iloc[600:]
     assert (out["period"] == 2).mean() < 0.2
     assert out["strength"].median() < 0.2
+
+
+def const(n, value):
+    return as_series(np.full(n, float(value)))
+
+
+def beat_positions(beats):
+    return np.flatnonzero(beats.to_numpy())
+
+
+def test_beats_follow_a_steady_pulse():
+    beats = track_beats(as_series(pulse(3000, 6)), const(3000, 6))
+    gaps = np.diff(beat_positions(beats)[beat_positions(beats) > 600])
+    assert np.median(gaps) == 6
+
+
+def test_beats_keep_time_through_a_missing_onset():
+    x = pulse(3000, 6)
+    x[1500] -= 1.0                       # the spike at 1500 goes silent
+    pos = beat_positions(track_beats(as_series(x), const(3000, 6)))
+    assert np.min(np.abs(pos - 1500)) <= 2
+
+
+def test_beats_carry_the_last_tempo_through_no_pulse_stretches():
+    period = const(3000, 6)
+    period.iloc[2000:2100] = np.nan      # tempo has no peak for a while
+    pos = beat_positions(track_beats(as_series(pulse(3000, 6)), period))
+    assert ((pos > 2000) & (pos < 2100)).sum() >= 12
+
+
+def test_meter_finds_three_beat_accent_pattern():
+    x = pulse(4000, 4)
+    x[::12] += 2.0                       # every 3rd spike is 3x larger
+    s = as_series(x)
+    beats = track_beats(s, const(4000, 4))
+    out = meter(s, beats).iloc[1000:]
+    assert out["beats_per_measure"].mode().iloc[0] == 3
+    down = np.flatnonzero(out["downbeat"].to_numpy()) + 1000
+    assert np.mean(down % 12 == 0) > 0.8
+
+
+def test_beats_and_meter_are_causal():
+    s = as_series(pulse(3000, 5, seed=7))
+    period = tempo(s)["period"]
+    full_b = track_beats(s, period)
+    cut_b = track_beats(s.iloc[:2000], period.iloc[:2000])
+    pd.testing.assert_series_equal(full_b.iloc[:2000], cut_b)
+    pd.testing.assert_frame_equal(meter(s, full_b).iloc[:2000],
+                                  meter(s.iloc[:2000], cut_b))
+
+
+def test_half_day_sessions_do_not_break_tracking():
+    days = pd.bdate_range("2020-01-02", periods=60)
+    idx = pd.DatetimeIndex([d + pd.Timedelta(minutes=570 + 15 * i)
+                            for k, d in enumerate(days)
+                            for i in range(14 if k == 40 else 26)])
+    s = pd.Series(pulse(len(idx), 5, seed=8), index=idx)
+    beats = track_beats(s, tempo(s)["period"])
+    out = meter(s, beats)
+    assert beats.sum() > 0 and len(out) == len(idx)

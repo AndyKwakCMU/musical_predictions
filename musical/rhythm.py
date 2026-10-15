@@ -80,3 +80,60 @@ def tempo(onset, window=Z_WINDOW, min_lag=2, max_lag=24):
     strength = np.where(has_peak, prominence[np.arange(len(acf)), choice],
                         np.where(ready, 0.0, np.nan))
     return pd.DataFrame({"period": period, "strength": strength}, index=onset.index)
+
+
+def track_beats(onset, period, tol=0.34, q=0.6):
+    #@requires period from tempo() (NaN where no pulse was heard)
+    #@ensures \result[t] True if bar t is a beat, decided at t from bars
+    #         <= t. A beat lands on a strong onset near the expected
+    #         spacing; if none comes, one is forced to keep the pulse.
+    #         "Strong" = in the top 1/period of recent onsets (at least the
+    #         q-quantile), since a real beat occupies about 1/period of bars.
+    #         Through no-pulse stretches the last heard tempo is kept.
+    rank = onset.rolling(Z_WINDOW).rank(pct=True).to_numpy()
+    per = period.ffill().to_numpy()
+    beats = np.zeros(len(onset), dtype=bool)
+    last = None
+    for t in range(len(onset)):
+        p = per[t]
+        if not np.isfinite(p):
+            continue
+        if last is None:
+            if np.isfinite(rank[t]) and rank[t] >= max(q, 1 - 1 / p):
+                beats[t], last = True, t
+            continue
+        d = t - last
+        strong = np.isfinite(rank[t]) and rank[t] >= max(q, 1 - 1 / p)
+        if (d >= round(p * (1 - tol)) and strong) or d >= round(p * (1 + tol)):
+            beats[t], last = True, t
+    return pd.Series(beats, index=onset.index, name="beat")
+
+
+def meter(onset, beats, n_beats=32, choices=(2, 3, 4)):
+    #@ensures \result has beats_per_measure (carried forward between
+    #         beats; NaN until n_beats beats are heard) and downbeat (True on
+    #         beats in the strongest accent phase). Uses beats <= t only.
+    pos = np.flatnonzero(beats.to_numpy())
+    accent = onset.to_numpy()[pos]
+    per_beat = np.full(len(pos), np.nan)
+    down = np.zeros(len(pos), dtype=bool)
+    for i in range(n_beats - 1, len(pos)):
+        a = accent[i - n_beats + 1:i + 1]
+        if not np.isfinite(a).all():
+            continue
+        scores = [np.corrcoef(a[m:], a[:-m])[0, 1] for m in choices]
+        if not np.isfinite(scores).any():
+            continue
+        m = choices[int(np.nanargmax(scores))]
+        idx = np.arange(i - n_beats + 1, i + 1)
+        phase_means = [a[(idx % m) == ph].mean() for ph in range(m)]
+        per_beat[i] = m
+        down[i] = (i % m) == int(np.argmax(phase_means))
+    bpm = np.full(len(onset), np.nan)
+    bpm[pos] = per_beat
+    downbeat = np.zeros(len(onset), dtype=bool)
+    downbeat[pos] = down
+    return pd.DataFrame({
+        "beats_per_measure": pd.Series(bpm, index=onset.index).ffill(),
+        "downbeat": downbeat,
+    }, index=onset.index)
