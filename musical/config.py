@@ -45,3 +45,13 @@ def raw_dir(interval):
 # Intraday Test B splits (data starts 2016; holdout is still >= DEV_END)
 INTRADAY_VAL_START = "2021-01-01"
 INTRADAY_TEST_START = "2023-01-01"
+
+# Listener + rhythm (plan 1). No data >= LISTENER_VAL_END is loaded.
+LISTENER_TRAIN_END = "2021-01-01"
+LISTENER_VAL_END = "2023-01-01"
+
+# models/trained_params.csv protocol (README), one row per training run
+PARAMS_COLUMNS = [
+    "run_id", "created", "dataset", "train_end", "val_start", "val_end",
+    "n_train", "n_val", "epochs_run", "best_val_loss", "model_path", "hparams",
+]

@@ -88,3 +88,25 @@ def test_save_load_round_trip_gives_same_predictions(tmp_path):
     model.eval()
     assert torch.allclose(model.cpu()(x, idx), again(x, idx), atol=1e-6)
     assert again.input_cols == INPUTS
+
+
+def write_protocol(path, bars):
+    out = bars.copy()
+    out.insert(0, "date", out.index.strftime("%Y-%m-%d"))
+    out.insert(1, "time", out.index.strftime("%H:%M:%S"))
+    out[["date", "time", "open", "high", "low", "close", "volume"]].to_csv(path, index=False)
+
+
+def test_load_series_never_returns_bars_at_or_after_end(tmp_path):
+    from musical.listener import load_series
+    from tests.test_features import intraday_bars
+    for i, name in enumerate(["SPY", "QQQ"]):
+        bars = intraday_bars(days=50, seed=i)
+        write_protocol(tmp_path / f"{name}_2020-01-01_2020-04-01_15m.csv", bars)
+    end = "2020-02-15"
+    series = load_series(tmp_path, end)
+    assert sorted(series) == ["QQQ", "SPY"]
+    for df in series.values():
+        assert df.index.max() < pd.Timestamp(end)
+        for col in ["onset", "SPY_ret_atr", "QQQ_vol_surprise", "first_bar"]:
+            assert col in df.columns

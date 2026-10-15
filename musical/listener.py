@@ -23,14 +23,20 @@
 
 import copy
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 from torch import nn
 
+from musical.data import load_bars
+from musical.features import add_context, bar_features
+from musical.rhythm import onset_strength
+
 TARGET_COLS = ["ret_atr", "range_atr", "vol_surprise", "onset"]
 HORIZON_K = 4
+CONTEXT_TICKERS = ["SPY", "QQQ"]     # the rest of the orchestra
 
 
 @dataclass
@@ -291,3 +297,21 @@ def load_listener(path, device="cpu"):
     model.load_state_dict(blob["state"])
     model.history = blob["history"]
     return model.to(device).eval()
+
+
+def load_series(raw_dir, end, interval="15m"):
+    #@ensures {ticker: features + SPY/QQQ context + onset} built only from
+    #         bars strictly before `end`
+    end = pd.Timestamp(end)
+    feats = {}
+    for path in sorted(Path(raw_dir).glob(f"*_{interval}.csv")):
+        bars = load_bars(path)
+        bars = bars[bars.index < end]
+        feats[path.name.split("_")[0]] = bar_features(bars)
+    context = {name: feats[name] for name in CONTEXT_TICKERS if name in feats}
+    out = {}
+    for ticker, f in feats.items():
+        f = add_context(f, context)
+        f["onset"] = onset_strength(f)
+        out[ticker] = f
+    return out

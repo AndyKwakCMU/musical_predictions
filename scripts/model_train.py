@@ -27,10 +27,7 @@ from musical.cnn import TrainConfig, save_model, train
 from musical.dataset import time_split
 from musical.experiment import load_dataset
 
-PARAMS_COLUMNS = [
-    "run_id", "created", "dataset", "train_end", "val_start", "val_end",
-    "n_train", "n_val", "epochs_run", "best_val_loss", "model_path", "hparams",
-]
+PARAMS_COLUMNS = config.PARAMS_COLUMNS
 
 
 def train_split(dataset, val_start, test_start, cfg, tag):
