@@ -1,0 +1,5 @@
+# Intraday (15m, IBKR) universe: liquid names, 2016-01-01 onward.
+# IBKR TRADES bars are already split-adjusted (verified: AAPL 2020-08-28
+# closes ~125, not ~500), so no split adjustment is applied.
+AAPL MSFT NVDA AMZN GOOGL META TSLA JPM XOM JNJ V PG UNH HD KO PEP COST WMT SPY QQQ
+AVGO ORCL AMD BAC GS CVX PFE MCD CAT NFLX

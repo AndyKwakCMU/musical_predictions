@@ -26,5 +26,5 @@ My CSV protocol for this project:
 raw data (OHLV)
 date,time,open,high,low,close,volume
 
-trained parameters
-(tbd...)
+trained parameters (models/trained_params.csv, one row per training run)
+run_id,created,dataset,train_end,val_start,val_end,n_train,n_val,epochs_run,best_val_loss,model_path,hparams
